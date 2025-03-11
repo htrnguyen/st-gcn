@@ -19,6 +19,6 @@ model_args:
 
 # test 
 phase: test
-device: 0
+device: []
 test_batch_size: 16
 

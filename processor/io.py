@@ -58,9 +58,9 @@ class IO():
 
         # gpu
         gpus = self.arg.device
+        self.gpus = gpus
         if len(gpus) > 0:
             torchlight.occupy_gpu(gpus)
-            self.gpus = gpus
             self.dev = "cuda:0"
         else:
             self.dev = "cpu"
