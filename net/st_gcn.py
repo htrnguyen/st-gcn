@@ -1,3 +1,4 @@
+from turtle import forward
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -94,6 +95,7 @@ class Model(nn.Module):
     def extract_feature(self, x):
 
         # data normalization
+        print('Chuan hoa du lieu')
         N, C, T, V, M = x.size()
         x = x.permute(0, 4, 3, 1, 2).contiguous()
         x = x.view(N * M, V * C, T)
@@ -102,6 +104,7 @@ class Model(nn.Module):
         x = x.permute(0, 1, 3, 4, 2).contiguous()
         x = x.view(N * M, C, T, V)
 
+        print("Lan truyen tien qua mang")
         # forwad
         for gcn, importance in zip(self.st_gcn_networks, self.edge_importance):
             x, _ = gcn(x, self.A * importance)
@@ -109,6 +112,7 @@ class Model(nn.Module):
         _, c, t, v = x.size()
         feature = x.view(N, M, c, t, v).permute(0, 2, 3, 4, 1)
 
+        print('Ket noi day du')
         # prediction
         x = self.fcn(x)
         output = x.view(N, M, -1, t, v).permute(0, 2, 3, 4, 1)
@@ -169,6 +173,13 @@ class st_gcn(nn.Module):
             nn.BatchNorm2d(out_channels),
             nn.Dropout(dropout, inplace=True),
         )
+        if out_channels == 64:
+            self.TAM = TA(out_channels,300)
+        elif out_channels == 128:
+            self.TAM = TA(out_channels,150)
+        else:
+            self.TAM = TA(out_channels,75)
+            
 
         if not residual:
             self.residual = lambda x: 0
@@ -192,6 +203,88 @@ class st_gcn(nn.Module):
 
         res = self.residual(x)
         x, A = self.gcn(x, A)
-        x = self.tcn(x) + res
+        x = self.tcn(x) 
+        x = self.TAM(x) + res
 
         return self.relu(x), A
+    
+class TA(nn.Module):
+    def __init__(self,out_channels,out_n_frames):
+        super().__init__()
+        
+        self.conv_T = nn.Conv1d(out_n_frames,out_n_frames,kernel_size=1)
+        self.conv_T2 = nn.Conv1d(2*out_n_frames,out_n_frames,kernel_size=1)
+        
+        self.conv_C = nn.Conv1d(out_channels,out_channels,kernel_size=1)
+        self.conv_C2 = nn.Conv1d(2*out_channels,out_channels,kernel_size=1)
+        
+        self.conv_V = nn.Conv1d(25,25,kernel_size=1)
+        self.conv_V2 = nn.Conv1d(2*25,25,kernel_size=1)
+        
+        self.alpha = nn.Parameter(torch.zeros(1))
+        self.beta = nn.Parameter(torch.zeros(1))
+        self.gamma = nn.Parameter(torch.zeros(1))
+        
+        self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
+        
+        
+    def forward(self,x):
+        
+        N, C, T, V= x.size()
+        x = x.permute(0, 2, 3, 1).contiguous() # NM,T,V,C
+        
+        #x = x.view(N, T, V, C)
+        # dimension T
+        x_T_a = x.mean(dim=[2,3],keepdim = True)
+        x_T_a = x_T_a.view(N,T,1)
+        x_T_a = self.conv_T(x_T_a)
+        x_T_a = self.relu(x_T_a)
+        
+        x_T_s = x.std(dim=[2,3],keepdim = True)
+        x_T_s = x_T_s.view(N,T,1)
+        x_T_s = self.conv_T(x_T_s)
+        x_T_s = self.relu(x_T_s)
+        
+        x_T = torch.cat((x_T_a,x_T_s),dim=1)
+        x_T = self.conv_T2(x_T)
+        
+        x_T = x_T.repeat(1,1,V*C).view(N,T,V,C).permute(0, 3, 1, 2).contiguous() #NM,C,T,V
+        
+        x = x.permute(0, 2, 1, 3).contiguous() # NM,V,T,C
+        # dimension V
+        x_V_a = x.mean(dim=[2,3],keepdim = True)
+        x_V_a = x_V_a.view(N,V,1)
+        x_V_a = self.conv_V(x_V_a)
+        x_V_a = self.relu(x_V_a)
+        
+        x_V_s = x.std(dim=[2,3],keepdim = True)
+        x_V_s = x_V_a.view(N,V,1)
+        x_V_s = self.conv_V(x_V_s)
+        x_V_s = self.relu(x_V_s)
+        
+        x_V = torch.cat((x_V_a,x_V_s),dim=1)
+        x_V = self.conv_V2(x_V)
+        
+        x_V = x_V.repeat(1,1,T*C).view(N,V,T,C).permute(0, 3, 2, 1).contiguous() #NM,C,T,V
+        
+        x = x.permute(0, 3, 2, 1).contiguous() # NM,C,T,V
+        # dimension C
+        x_C_a = x.mean(dim=[2,3],keepdim = True)
+        x_C_a = x_C_a.view(N,C,1)
+        x_C_a = self.conv_C(x_C_a)
+        x_C_a = self.relu(x_C_a)
+        
+        x_C_s = x.std(dim=[2,3],keepdim = True)
+        x_C_s = x_C_s.view(N,C,1)
+        x_C_s = self.conv_C(x_C_s)
+        x_C_s = self.relu(x_C_s)
+        
+        x_C = torch.cat((x_C_a,x_C_s),dim=1)
+        x_C = self.conv_C2(x_C)
+        
+        x_C = x_C.repeat(1,1,T*V).view(N,C,T,V) #NM,C,T,V
+        
+        x_TA = self.alpha*x_T + self.beta*x_V + self.gamma*x_C
+        
+        return x*self.sigmoid(x_TA)
