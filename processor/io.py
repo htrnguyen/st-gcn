@@ -57,8 +57,8 @@ class IO():
         self.io.save_arg(self.arg)
 
         # gpu
-        if self.arg.use_gpu:
-            gpus = torchlight.visible_gpu(self.arg.device)
+        gpus = self.arg.device
+        if len(gpus) > 0:
             torchlight.occupy_gpu(gpus)
             self.gpus = gpus
             self.dev = "cuda:0"
