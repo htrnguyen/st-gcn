@@ -128,8 +128,11 @@ class IO:
             yaml.dump(arg_dict, f, default_flow_style=False, indent=4)
 
     def print_log(self, str_info):
-        # Bỏ phần tạo timestamp
-        print(str_info)
+        if self.print_log:
+            print(str_info)
+        if self.save_log:
+            with open("{}/log.txt".format(self.work_dir), "a") as f:
+                f.write(str_info + "\n")
 
     def init_timer(self, *name):
         self.record_time()
