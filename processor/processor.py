@@ -4,6 +4,7 @@ import sys
 import argparse
 import yaml
 import numpy as np
+import os
 
 # torch
 import torch
@@ -25,7 +26,6 @@ class Processor(IO):
     """
 
     def __init__(self, argv=None):
-
         self.load_arg(argv)
         self.init_environment()
         self.load_model()
@@ -33,16 +33,39 @@ class Processor(IO):
         self.gpu()
         self.load_data()
         self.load_optimizer()
-        # Override print_log method
-        self.io.print_log = lambda x: print(x)
 
     def init_environment(self):
+        # Override print_log trước khi gọi super().init_environment()
+        def simple_print(str_info):
+            print(str_info)
 
-        super().init_environment()
+        self.io = torchlight.IO(
+            self.arg.work_dir, save_log=self.arg.save_log, print_log=self.arg.print_log
+        )
+        self.io.print_log = simple_print
+
+        # Khởi tạo các biến khác
         self.result = dict()
         self.iter_info = dict()
         self.epoch_info = dict()
         self.meta_info = dict(epoch=0, iter=0)
+
+        # gpu
+        if self.arg.use_gpu:
+            gpus = torchlight.visible_gpu(self.arg.device)
+            torchlight.occupy_gpu(gpus)
+            self.gpus = gpus
+            self.dev = "cuda:0"
+        else:
+            self.dev = "cpu"
+
+        if self.arg.print_log:
+            # Tạo work_dir nếu không tồn tại
+            if not os.path.exists(self.arg.work_dir):
+                os.makedirs(self.arg.work_dir)
+
+        # Save arg
+        self.io.save_arg(self.arg)
 
     def load_optimizer(self):
         pass
