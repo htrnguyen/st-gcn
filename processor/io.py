@@ -54,21 +54,13 @@ class IO:
         self.io = torchlight.IO(
             self.arg.work_dir, save_log=self.arg.save_log, print_log=self.arg.print_log
         )
-
-        # Override print_log method
-        def custom_print_log(str_info):
-            if self.arg.print_log:
-                print(str_info)
-
-        self.io.print_log = custom_print_log
-
         self.io.save_arg(self.arg)
 
         # gpu
-        gpus = self.arg.device
-        self.gpus = gpus
-        if gpus and len(gpus) > 0:
+        if self.arg.use_gpu:
+            gpus = torchlight.visible_gpu(self.arg.device)
             torchlight.occupy_gpu(gpus)
+            self.gpus = gpus
             self.dev = "cuda:0"
         else:
             self.dev = "cpu"
@@ -97,12 +89,6 @@ class IO:
     def start(self):
         self.io.print_log("Parameters:\n{}\n".format(str(vars(self.arg))))
 
-    def print_log(self, str_info):
-        # Loại bỏ timestamp khi in log
-        # Thay vì: now = time.strftime('[%m.%d.%y|%H:%M:%S] ', time.localtime())
-        # print(now + str_info)
-        print(str_info)
-
     @staticmethod
     def get_parser(add_help=False):
 
@@ -127,7 +113,7 @@ class IO:
         parser.add_argument(
             "--device",
             type=int,
-            default=[],
+            default=0,
             nargs="+",
             help="the indexes of GPUs for training or testing",
         )
