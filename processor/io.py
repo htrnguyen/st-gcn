@@ -57,10 +57,10 @@ class IO():
         self.io.save_arg(self.arg)
 
         # gpu
-        gpus = self.arg.device
-        self.gpus = gpus
-        if gpus and len(gpus) > 0:
+        if self.arg.use_gpu:
+            gpus = torchlight.visible_gpu(self.arg.device)
             torchlight.occupy_gpu(gpus)
+            self.gpus = gpus
             self.dev = "cuda:0"
         else:
             self.dev = "cpu"
@@ -101,7 +101,7 @@ class IO():
 
         # processor
         parser.add_argument('--use_gpu', type=str2bool, default=True, help='use GPUs or not')
-        parser.add_argument('--device', type=int, default=[], nargs='+', help='the indexes of GPUs for training or testing')
+        parser.add_argument('--device', type=int, default=0, nargs='+', help='the indexes of GPUs for training or testing')
 
         # visulize and debug
         parser.add_argument('--print_log', type=str2bool, default=True, help='print logging or not')
