@@ -89,12 +89,6 @@ class IO:
     def start(self):
         self.io.print_log("Parameters:\n{}\n".format(str(vars(self.arg))))
 
-    def print_log(self, str_info):
-        # Loại bỏ timestamp khi in log
-        # Thay vì: now = time.strftime('[%m.%d.%y|%H:%M:%S] ', time.localtime())
-        # print(now + str_info)
-        print(str_info)
-
     @staticmethod
     def get_parser(add_help=False):
 
