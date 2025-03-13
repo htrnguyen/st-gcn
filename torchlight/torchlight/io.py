@@ -25,11 +25,7 @@ class IO:
     def __init__(self, work_dir, save_log=True, print_log=True):
         self.work_dir = work_dir
         self.save_log = save_log
-        self.print_log = print_log
-        if print_log:
-            # Tạo work_dir nếu không tồn tại
-            if not os.path.exists(self.work_dir):
-                os.makedirs(self.work_dir)
+        self.print_to_screen = print_log
         self.cur_time = time.time()
         self.split_timer = {}
         self.pavi_logger = None
@@ -127,12 +123,17 @@ class IO:
             f.write("# command line: {}\n\n".format(" ".join(sys.argv)))
             yaml.dump(arg_dict, f, default_flow_style=False, indent=4)
 
-    def print_log(self, str_info):
-        if self.print_log:
-            print(str_info)
+    def print_log(self, str, print_time=True):
+        if print_time:
+            # localtime = time.asctime(time.localtime(time.time()))
+            # str = time.strftime("[%m.%d.%y|%X] ", time.localtime()) + str
+            str = ""
+
+        if self.print_to_screen:
+            print(str)
         if self.save_log:
             with open("{}/log.txt".format(self.work_dir), "a") as f:
-                f.write(str_info + "\n")
+                print(str, file=f)
 
     def init_timer(self, *name):
         self.record_time()
