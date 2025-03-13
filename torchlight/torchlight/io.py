@@ -123,17 +123,13 @@ class IO:
             f.write("# command line: {}\n\n".format(" ".join(sys.argv)))
             yaml.dump(arg_dict, f, default_flow_style=False, indent=4)
 
-    def print_log(self, str, print_time=True):
-        if print_time:
-            # localtime = time.asctime(time.localtime(time.time()))
-            # str = time.strftime("[%m.%d.%y|%X] ", time.localtime()) + str
-            str = ""
-
+    def print_log(self, str_info):
+        # Remove timestamp, just print the info string
         if self.print_to_screen:
-            print(str)
+            print(str_info)
         if self.save_log:
             with open("{}/log.txt".format(self.work_dir), "a") as f:
-                print(str, file=f)
+                f.write(str_info + "\n")
 
     def init_timer(self, *name):
         self.record_time()
